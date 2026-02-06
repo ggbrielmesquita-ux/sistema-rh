@@ -13,7 +13,14 @@ export async function salvarCandidato(dados: any) {
 
     // ---------------------------------------------
     console.log("Testando conexão Hardcode...");
-    const supabase = createClient(url, key);
+    const supabase = createClient(url, key, {
+      auth: {
+        persistSession: false,
+      },
+      global: {
+        fetch: (...args) => fetch(args[0], { ...args[1], cache: 'no-store' }),
+      },
+    });
 
     const { error } = await supabase
       .from('candidates')
