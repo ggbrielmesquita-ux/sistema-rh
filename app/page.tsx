@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // === DADOS DAS PERGUNTAS ===
-// (Estou colocando só 5 aqui para o código caber, mas pode manter as suas 25!)
 const FULL_QUESTIONS = [
   { id: 1, order_index: 1, category: 'Situacional', text: 'Faltam 10 minutos para o fim do turno. Um caminhão chega com nota errada. O que faz?', options: [{ id: 101, text: 'Recebo para não atrasar e deixo bilhete.', score_rit: 2, score_dis: -2 }, { id: 102, text: 'Peço para aguardar e procuro responsável.', score_res: 2 }, { id: 103, text: 'Recuso a entrada até autorização.', score_dis: 2 }, { id: 104, text: 'Confiro a carga física e libero.', score_det: -2 }] },
   { id: 2, order_index: 2, category: 'Situacional', text: 'A fita adesiva acaba no meio da meta. O que faz?', options: [{ id: 201, text: 'Passo fita velha e sigo.', score_rit: 2 }, { id: 202, text: 'Paro e troco.', score_det: 2 }, { id: 203, text: 'Deixo de lado.', score_dis: 1 }, { id: 204, text: 'Peço emprestado.', score_eqp: -1 }] },
@@ -27,14 +26,14 @@ export default function Home() {
   };
 
   const calculateAndSave = async () => {
-    // 1. Validação: Obriga a preencher nome e email
+    // 1. Validação
     if (!candidateName.trim() || !candidateEmail.trim()) {
       alert("⚠️ Por favor, preencha seu NOME e EMAIL no topo da página antes de finalizar!");
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Sobe a tela para a pessoa ver
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    // 2. Cálculo da Nota
+    // 2. Cálculo
     let scores = { dis: 0, rot: 0, res: 0, det: 0, rit: 0, eqp: 0 };
     Object.values(answers).forEach((opt: any) => {
       scores.dis += opt.score_dis || 0;
@@ -59,9 +58,9 @@ export default function Home() {
     setResult({ percentage: finalScore, details: scores });
     setSavingStatus('saving');
 
-    // 3. Salvamento no Banco de Dados
+    // 3. Salvamento
     try {
-      console.log("Tentando salvar...", { candidateName, finalScore });
+      console.log("Iniciando salvamento v2..."); // Log novo para confirmar atualização
       
       const { error } = await supabase
         .from('candidates')
@@ -77,14 +76,12 @@ export default function Home() {
       if (error) throw error;
       
       setSavingStatus('success');
-      console.log("Salvo com sucesso!");
 
     } catch (err) {
       console.error("Erro ao salvar:", err);
       setSavingStatus('error');
     }
 
-    // Rola para o resultado
     setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 100);
@@ -93,10 +90,10 @@ export default function Home() {
   return (
     <div className="min-h-screen p-8 bg-gray-50 text-black font-sans">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-center text-blue-900">Teste de Seleção</h1>
+        {/* MUDANÇA VISUAL AQUI NO TÍTULO 👇 */}
+        <h1 className="text-3xl font-bold mb-2 text-center text-blue-900">Teste de Seleção (Versão Final)</h1>
         <p className="text-center text-gray-500 mb-8">Cargo: Auxiliar de Estoque</p>
         
-        {/* --- FORMULÁRIO NOVO (AQUI ESTÁ A MUDANÇA) --- */}
         <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500 mb-8">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">👤 Identificação do Candidato</h3>
           <div className="grid gap-4">
@@ -123,7 +120,6 @@ export default function Home() {
           </div>
         </div>
         
-        {/* LISTA DE PERGUNTAS */}
         {questions.map((q) => (
           <div key={q.id} className="mb-6 p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
             <h2 className="text-lg font-bold mb-4 text-gray-800">{q.text}</h2>
@@ -147,7 +143,6 @@ export default function Home() {
           </div>
         ))}
 
-        {/* BOTÃO FINAL */}
         <button
           onClick={calculateAndSave}
           disabled={savingStatus === 'saving' || savingStatus === 'success'}
@@ -162,7 +157,6 @@ export default function Home() {
           {savingStatus === 'error' && '⚠️ Erro ao Salvar (Tente novamente)'}
         </button>
 
-        {/* RESULTADO */}
         {result && (
           <div className="mt-8 p-8 bg-white border-2 border-green-500 rounded-xl text-center shadow-xl animate-bounce-in mb-10">
              {savingStatus === 'error' && (
