@@ -9,7 +9,7 @@ export async function salvarCandidato(dados: any) {
     
     // 2. A CHAVE VOCÊ TEM QUE COLAR AQUI DENTRO DAS ASPAS 👇
     // (Copie aquele código 'eyJh...' do botão 'anon public' do Supabase e cole abaixo)
-    const key = "COLE_SUA_CHAVE_GIGANTE_AQUI";
+    const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sbnVtdHFrZ2tycHJwcnNiaHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMjcwNjMsImV4cCI6MjA4NTkwMzA2M30.SKg75x-pV-MJWlIarM45vP7J0t8bpsHRd1SL1yE8AeU";
 
     // ---------------------------------------------
     console.log("Testando conexão Hardcode...");
