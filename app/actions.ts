@@ -3,14 +3,16 @@
 import { createClient } from '@supabase/supabase-js';
 
 export async function salvarCandidato(dados: any) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   try {
-    // Validação de segurança antes de conectar
-    if (!url) throw new Error("A URL do Supabase está VAZIA na Vercel.");
-    if (!key) throw new Error("A Chave (Key) do Supabase está VAZIA na Vercel.");
+    // 1. A URL EU JÁ PREENCHI PRA VOCÊ (Peguei do seu print):
+    const url = "https://mlnumtqkgkrprpsbhys.supabase.co"; 
+    
+    // 2. A CHAVE VOCÊ TEM QUE COLAR AQUI DENTRO DAS ASPAS 👇
+    // (Copie aquele código 'eyJh...' do botão 'anon public' do Supabase e cole abaixo)
+    const key = "COLE_SUA_CHAVE_GIGANTE_AQUI";
 
+    // ---------------------------------------------
+    console.log("Testando conexão Hardcode...");
     const supabase = createClient(url, key);
 
     const { error } = await supabase
@@ -23,12 +25,10 @@ export async function salvarCandidato(dados: any) {
 
   } catch (err: any) {
     console.error('Erro:', err);
-    // Aqui está o segredo: Vamos retornar o motivo exato para aparecer na tela vermelha
-    // (Mostrando só o começo da URL para debug)
-    const debugUrl = url ? url.substring(0, 20) + "..." : "VAZIO";
+    // Se der erro, vai aparecer esta mensagem específica:
     return { 
       success: false, 
-      message: `Erro: ${err.message || 'Desconhecido'} (Tentou usar URL: ${debugUrl})`
+      message: `Erro Hardcode: ${err.message}`
     };
   }
 }
