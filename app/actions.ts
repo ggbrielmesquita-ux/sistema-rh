@@ -3,25 +3,32 @@
 import { createClient } from '@supabase/supabase-js';
 
 export async function salvarCandidato(dados: any) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
   try {
-    // Agora sim: Conecta no Supabase usando suas senhas da Vercel
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    // Validação de segurança antes de conectar
+    if (!url) throw new Error("A URL do Supabase está VAZIA na Vercel.");
+    if (!key) throw new Error("A Chave (Key) do Supabase está VAZIA na Vercel.");
+
+    const supabase = createClient(url, key);
 
     const { error } = await supabase
       .from('candidates')
       .insert([dados]);
 
-    if (error) {
-      console.error('Erro ao salvar no Supabase:', error);
-      return { success: false, message: 'Erro no Banco: ' + error.message };
-    }
+    if (error) throw error;
 
     return { success: true };
+
   } catch (err: any) {
-    console.error('Erro Geral:', err);
-    return { success: false, message: 'Erro interno no servidor' };
+    console.error('Erro:', err);
+    // Aqui está o segredo: Vamos retornar o motivo exato para aparecer na tela vermelha
+    // (Mostrando só o começo da URL para debug)
+    const debugUrl = url ? url.substring(0, 20) + "..." : "VAZIO";
+    return { 
+      success: false, 
+      message: `Erro: ${err.message || 'Desconhecido'} (Tentou usar URL: ${debugUrl})`
+    };
   }
 }
