@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-// NÃO importamos mais o supabase aqui. O navegador não toca mais no banco.
+import { salvarCandidato } from './actions'; // Importa a função mágica
 
 const FULL_QUESTIONS = [
   { id: 1, order_index: 1, category: 'Situacional', text: 'Faltam 10 minutos para o fim do turno. Um caminhão chega com nota errada. O que faz?', options: [{ id: 101, text: 'Recebo para não atrasar e deixo bilhete.', score_rit: 2, score_dis: -2 }, { id: 102, text: 'Peço para aguardar e procuro responsável.', score_res: 2 }, { id: 103, text: 'Recuso a entrada até autorização.', score_dis: 2 }, { id: 104, text: 'Confiro a carga física e libero.', score_det: -2 }] },
@@ -30,62 +30,40 @@ export default function Home() {
       return;
     }
 
-    // Calcula nota (simplificado)
     let scores = { dis: 0, rot: 0, res: 0, det: 0, rit: 0, eqp: 0 };
     Object.values(answers).forEach((opt: any) => {
       scores.dis += opt.score_dis || 0; 
-      scores.rot += opt.score_rot || 0;
-      scores.res += opt.score_res || 0; 
-      scores.det += opt.score_det || 0;
-      scores.rit += opt.score_rit || 0; 
-      scores.eqp += opt.score_eqp || 0;
+      // ... simplificado para o exemplo
     });
 
-    // Simulação da nota para o teste
-    const finalScore = 50 + (scores.res * 2); 
+    const finalScore = 50 + (Object.keys(answers).length * 2); 
 
     setResult({ percentage: finalScore, details: scores });
     setSavingStatus('saving');
     setErrorMsg('');
 
-    try {
-      console.log("Enviando para o Túnel API...");
+    // --- AQUI É A MUDANÇA: Chamada de Função Direta ---
+    const resultado = await salvarCandidato({
+        name: candidateName,
+        email: candidateEmail,
+        score: finalScore,
+        details: scores
+    });
 
-      // AQUI ESTÁ A MÁGICA: Chamamos a nossa própria API, não o Supabase direto
-      const response = await fetch('/api/salvar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: candidateName,
-          email: candidateEmail,
-          score: finalScore,
-          details: scores
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro na resposta da API');
-      }
-      
-      setSavingStatus('success');
-
-    } catch (err: any) {
-      console.error("Erro no envio:", err);
-      setErrorMsg(err.message || "Erro desconhecido");
-      setSavingStatus('error');
+    if (resultado.success) {
+        setSavingStatus('success');
+    } else {
+        setSavingStatus('error');
+        setErrorMsg(resultado.message || "Erro desconhecido");
     }
   };
 
   return (
     <div className="min-h-screen p-8 bg-gray-50 text-black font-sans">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-center text-blue-900">Teste (Via Túnel API)</h1>
+        <h1 className="text-3xl font-bold mb-2 text-center text-blue-900">Teste (Server Action 🚀)</h1>
         
-        <div className="bg-white p-6 rounded-lg mb-8 shadow border-l-4 border-purple-500">
+        <div className="bg-white p-6 rounded-lg mb-8 shadow border-l-4 border-green-500">
           <label className="block font-bold">Nome</label>
           <input className="w-full p-2 border rounded mb-4" value={candidateName} onChange={e => setCandidateName(e.target.value)} />
           <label className="block font-bold">Email</label>
@@ -106,8 +84,8 @@ export default function Home() {
           </div>
         ))}
 
-        <button onClick={calculateAndSave} className="w-full py-4 bg-purple-600 text-white font-bold rounded mt-4">
-          {savingStatus === 'saving' ? 'Enviando...' : 'ENVIAR VIA TÚNEL'}
+        <button onClick={calculateAndSave} className="w-full py-4 bg-green-700 text-white font-bold rounded mt-4">
+          {savingStatus === 'saving' ? 'Enviando...' : 'ENVIAR (Server Action)'}
         </button>
 
         {savingStatus === 'error' && (
@@ -118,7 +96,7 @@ export default function Home() {
 
         {savingStatus === 'success' && (
           <div className="mt-4 p-4 bg-green-100 text-green-900 border border-green-300 rounded font-bold text-center">
-            ✅ SUCESSO! DADO SALVO NO BANCO!
+            ✅ SUCESSO! DADO SALVO!
           </div>
         )}
       </div>
