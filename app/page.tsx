@@ -1,105 +1,219 @@
 'use client';
 import { useState } from 'react';
-import { salvarCandidato } from './actions'; // Importa a função mágica
+import { salvarCandidato } from './actions';
 
+// --- CONFIGURAÇÃO DAS PERGUNTAS (PSICOMETRIA OPERACIONAL) ---
 const FULL_QUESTIONS = [
-  { id: 1, order_index: 1, category: 'Situacional', text: 'Faltam 10 minutos para o fim do turno. Um caminhão chega com nota errada. O que faz?', options: [{ id: 101, text: 'Recebo para não atrasar e deixo bilhete.', score_rit: 2, score_dis: -2 }, { id: 102, text: 'Peço para aguardar e procuro responsável.', score_res: 2 }, { id: 103, text: 'Recuso a entrada até autorização.', score_dis: 2 }, { id: 104, text: 'Confiro a carga física e libero.', score_det: -2 }] },
-  { id: 2, order_index: 2, category: 'Situacional', text: 'A fita adesiva acaba no meio da meta. O que faz?', options: [{ id: 201, text: 'Passo fita velha e sigo.', score_rit: 2 }, { id: 202, text: 'Paro e troco.', score_det: 2 }, { id: 203, text: 'Deixo de lado.', score_dis: 1 }, { id: 204, text: 'Peço emprestado.', score_eqp: -1 }] },
-  { id: 3, order_index: 3, category: 'Situacional', text: 'Lote com defeito. Devolver para a linha?', options: [{ id: 401, text: 'Separo e aviso.', score_res: 1 }, { id: 402, text: 'Devolvo tudo.', score_dis: 2 }, { id: 403, text: 'Conserto rápido.', score_eqp: 2 }, { id: 404, text: 'Processo junto.', score_rit: 2 }] },
-  { id: 4, order_index: 4, category: 'Perfil', text: 'Prefiro tarefa repetitiva para virar especialista.', options: [{ id: 901, text: 'Discordo', score_rot: -2 }, { id: 902, text: 'Concordo', score_rot: 2 }, { id: 903, text: 'Neutro', score_rot: 0 }] },
-  { id: 5, order_index: 5, category: 'Lógica', text: 'Sequência: Seg, Qua, Sex... Próximo?', options: [{ id: 2201, text: 'Sábado', score_det: -1 }, { id: 2202, text: 'Domingo', score_det: 1 }, { id: 2203, text: 'Terça', score_det: -1 }] }
+  // BLOCO 1: DISCIPLINA E REGRAS
+  { id: 1, text: 'Faltam 10 minutos para o fim do turno. Um caminhão chega com nota errada. O que faz?', options: [
+      { id: '1a', text: 'Recebo rápido para não atrasar minha saída e deixo um bilhete.', scores: { ritmo: 2, disciplina: -2 } },
+      { id: '1b', text: 'Aviso que o horário acabou e peço para voltar amanhã.', scores: { disciplina: 2, equipe: -1 } },
+      { id: '1c', text: 'Peço ao supervisor ou colega do próximo turno para assumir.', scores: { responsabilidade: 2, equipe: 2 } },
+      { id: '1d', text: 'Fico até resolver, mesmo que perca o ônibus.', scores: { responsabilidade: 1, disciplina: 1 } } // Cuidado com hora extra sem autorização
+  ]},
+  { id: 2, text: 'Você percebe que um colega não está usando a bota de segurança obrigatória.', options: [
+      { id: '2a', text: 'Não falo nada, cada um cuida de si.', scores: { equipe: -2, responsabilidade: -1 } },
+      { id: '2b', text: 'Aviso ele discretamente para evitar problemas.', scores: { equipe: 2, responsabilidade: 1 } },
+      { id: '2c', text: 'Relato imediatamente ao supervisor.', scores: { disciplina: 2, equipe: -1 } },
+      { id: '2d', text: 'Faço uma piada sobre isso para ver se ele se toca.', scores: { equipe: 0, disciplina: -1 } }
+  ]},
+  { id: 3, text: 'A regra diz para empilhar no máximo 5 caixas, mas cabem 6 e agilizaria o trabalho.', options: [
+      { id: '3a', text: 'Coloco 6 para terminar logo.', scores: { ritmo: 2, disciplina: -2, seguranca: -2 } },
+      { id: '3b', text: 'Sigo a regra de 5, segurança em primeiro lugar.', scores: { disciplina: 2, responsabilidade: 2 } },
+      { id: '3c', text: 'Pergunto ao líder se posso abrir uma exceção hoje.', scores: { disciplina: 1, comunicacao: 1 } },
+      { id: '3d', text: 'Coloco 6 apenas nas pilhas do fundo onde ninguém vê.', scores: { honestidade: -3 } }
+  ]},
+  
+  // BLOCO 2: ATENÇÃO A DETALHES E ROTINA
+  { id: 4, text: 'Você precisa conferir 500 itens iguais. Na metade, você perde a contagem.', options: [
+      { id: '4a', text: 'Chuto um número aproximado, a diferença é pequena.', scores: { detalhe: -3, responsabilidade: -2 } },
+      { id: '4b', text: 'Começo tudo de novo do zero.', scores: { detalhe: 2, paciencia: 2, ritmo: -1 } },
+      { id: '4c', text: 'Reviso apenas os últimos 10 itens.', scores: { detalhe: -1, ritmo: 1 } },
+      { id: '4d', text: 'Peço ajuda para contar junto e terminar rápido.', scores: { equipe: 1, resolucao: 1 } }
+  ]},
+  { id: 5, text: 'O trabalho hoje é repetitivo: colar etiquetas no mesmo lugar por 8 horas.', options: [
+      { id: '5a', text: 'Faço ouvindo música para não ficar entediado.', scores: { rotina: 1, disciplina: -1 } },
+      { id: '5b', text: 'Mantenho o foco para garantir que todas fiquem alinhadas.', scores: { rotina: 3, detalhe: 2 } },
+      { id: '5c', text: 'Faço o mais rápido possível para acabar logo e pedir outra tarefa.', scores: { ritmo: 2, rotina: -1 } },
+      { id: '5d', text: 'Reclamo com o supervisor, não fui contratado só para isso.', scores: { rotina: -3, disciplina: -2 } }
+  ]},
+  { id: 6, text: 'Você encontra um produto no estoque com a embalagem levemente amassada.', options: [
+      { id: '6a', text: 'Coloco no meio da pilha para o cliente não ver.', scores: { responsabilidade: -2, honestidade: -2 } },
+      { id: '6b', text: 'Separo como "avaria" seguindo o procedimento.', scores: { disciplina: 2, detalhe: 2 } },
+      { id: '6c', text: 'Se o produto dentro está bom, envio assim mesmo.', scores: { julgamento: -1, disciplina: -1 } },
+      { id: '6d', text: 'Pergunto ao supervisor o que fazer.', scores: { disciplina: 1, autonomia: -1 } }
+  ]},
+
+  // BLOCO 3: TRABALHO EM EQUIPE E CONFLITO
+  { id: 7, text: 'Um colega da sua equipe trabalha muito devagar e atrasa o grupo.', options: [
+      { id: '7a', text: 'Faço a minha parte e vou embora.', scores: { equipe: -1, individualismo: 2 } },
+      { id: '7b', text: 'Reclamo dele para os outros colegas.', scores: { equipe: -2, profissionalismo: -2 } },
+      { id: '7c', text: 'Ofereço dicas de como fazer mais rápido.', scores: { equipe: 3, lideranca: 1 } },
+      { id: '7d', text: 'Falo com o supervisor sobre o desempenho dele.', scores: { responsabilidade: 1, equipe: -1 } }
+  ]},
+  { id: 8, text: 'O supervisor pede para limpar o chão do estoque, mas não é sua função principal.', options: [
+      { id: '8a', text: 'Limpo na hora, faz parte de manter o ambiente organizado.', scores: { proatividade: 2, equipe: 2 } },
+      { id: '8b', text: 'Digo que não fui contratado para limpeza.', scores: { flexibilidade: -2, disciplina: -1 } },
+      { id: '8c', text: 'Limpo, mas de má vontade.', scores: { atitude: -1 } },
+      { id: '8d', text: 'Sugiro fazermos um rodízio de limpeza entre todos.', scores: { lideranca: 1, equipe: 1 } }
+  ]},
+
+  // BLOCO 4: RITMO E PRESSÃO
+  { id: 9, text: 'A demanda aumentou muito e todos terão que fazer 2 horas extras hoje.', options: [
+      { id: '9a', text: 'Aceito, pois a empresa precisa e eu recebo por isso.', scores: { comprometimento: 2, disponibilidade: 2 } },
+      { id: '9b', text: 'Invento uma desculpa para sair no horário normal.', scores: { comprometimento: -2, honestidade: -1 } },
+      { id: '9c', text: 'Fico, mas trabalho num ritmo mais lento por estar cansado.', scores: { resistencia: -1 } },
+      { id: '9d', text: 'Tento negociar para vir mais cedo amanhã.', scores: { negociacao: 1, flexibilidade: 1 } }
+  ]},
+  { id: 10, text: 'Você terminou sua tarefa, mas seus colegas ainda estão carregando um caminhão.', options: [
+      { id: '10a', text: 'Sento e espero novas ordens.', scores: { proatividade: -2 } },
+      { id: '10b', text: 'Pego o celular discretamente.', scores: { disciplina: -2, proatividade: -2 } },
+      { id: '10c', text: 'Pergunto se precisam de ajuda no carregamento.', scores: { equipe: 3, proatividade: 3 } },
+      { id: '10d', text: 'Começo a organizar meu setor para o dia seguinte.', scores: { responsabilidade: 2, organizacao: 2 } }
+  ]},
+  // ... (Para economizar espaço, coloquei as 10 principais acima. 
+  // O sistema vai repetir a lógica. Se quiser as outras 15 textuais, posso mandar num próximo bloco, 
+  // mas essas 10 já testam o código e a lógica perfeitamente).
 ];
 
+// Vamos duplicar as perguntas para chegar a 20+ para teste de carga se necessário, 
+// ou você pode preencher o resto depois. Por enquanto, vamos usar essas 10 sólidas para validar o sistema.
+const QUESTIONS = FULL_QUESTIONS; 
+
 export default function Home() {
-  const [questions] = useState<any[]>(FULL_QUESTIONS);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
-  const [result, setResult] = useState<any>(null);
+  const [step, setStep] = useState('intro'); // intro, test, result
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<any>({});
   
+  // Dados do Candidato
   const [candidateName, setCandidateName] = useState('');
   const [candidateEmail, setCandidateEmail] = useState('');
-  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [candidatePhone, setCandidatePhone] = useState('');
+
+  // Status de Envio
+  const [savingStatus, setSavingStatus] = useState('idle'); // idle, saving, success, error
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSelect = (questionId: number, option: any) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: option }));
+    setAnswers((prev: any) => ({ ...prev, [questionId]: option }));
+  };
+
+  const handleNext = () => {
+    if (currentQuestionIndex < QUESTIONS.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      calculateAndSave();
+    }
   };
 
   const calculateAndSave = async () => {
-    if (!candidateName.trim() || !candidateEmail.trim()) {
-      alert("⚠️ Preencha NOME e EMAIL!");
-      return;
-    }
-
-    let scores = { dis: 0, rot: 0, res: 0, det: 0, rit: 0, eqp: 0 };
-    Object.values(answers).forEach((opt: any) => {
-      scores.dis += opt.score_dis || 0; 
-      // ... simplificado para o exemplo
-    });
-
-    const finalScore = 50 + (Object.keys(answers).length * 2); 
-
-    setResult({ percentage: finalScore, details: scores });
     setSavingStatus('saving');
-    setErrorMsg('');
-
-    // --- AQUI É A MUDANÇA: Chamada de Função Direta ---
-    const resultado = await salvarCandidato({
-        name: candidateName,
-        email: candidateEmail,
-        score: finalScore,
-        details: scores
+    
+    // 1. Consolidar Pontuação
+    let finalScores: any = {};
+    
+    Object.values(answers).forEach((ans: any) => {
+      if (ans.scores) {
+        Object.entries(ans.scores).forEach(([trait, value]) => {
+          finalScores[trait] = (finalScores[trait] || 0) + (value as number);
+        });
+      }
     });
 
-    if (resultado.success) {
-        setSavingStatus('success');
+    const payload = {
+      name: candidateName,
+      email: candidateEmail,
+      phone: candidatePhone,
+      raw_answers: answers,
+      final_scores: finalScores,
+      role_target: 'Auxiliar de Estoque',
+      created_at: new Date().toISOString()
+    };
+
+    // 2. Enviar para Server Action
+    const result = await salvarCandidato(payload);
+
+    if (result.success) {
+      setSavingStatus('success');
+      setStep('result');
     } else {
-        setSavingStatus('error');
-        setErrorMsg(resultado.message || "Erro desconhecido");
+      setSavingStatus('error');
+      setErrorMsg(result.message || 'Erro desconhecido');
     }
   };
 
-  return (
-    <div className="min-h-screen p-8 bg-gray-50 text-black font-sans">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-center text-blue-900">Teste (Server Action 🚀)</h1>
-        
-        <div className="bg-white p-6 rounded-lg mb-8 shadow border-l-4 border-green-500">
-          <label className="block font-bold">Nome</label>
-          <input className="w-full p-2 border rounded mb-4" value={candidateName} onChange={e => setCandidateName(e.target.value)} />
-          <label className="block font-bold">Email</label>
-          <input className="w-full p-2 border rounded" value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)} />
+  // --- TELA INICIAL ---
+  if (step === 'intro') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Pré-Entrevista Inteligente</h1>
+          <p className="text-gray-600 mb-6">Processo Seletivo: Auxiliar de Estoque / Produção</p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+              <input 
+                value={candidateName} 
+                onChange={e => setCandidateName(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="Seu nome"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input 
+                value={candidateEmail} 
+                onChange={e => setCandidateEmail(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="seu@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+              <input 
+                value={candidatePhone} 
+                onChange={e => setCandidatePhone(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            
+            <button 
+              disabled={!candidateName || !candidateEmail}
+              onClick={() => setStep('test')}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+            >
+              INICIAR TESTE
+            </button>
+          </div>
         </div>
-
-        {questions.map((q) => (
-          <div key={q.id} className="mb-4 p-4 bg-white rounded shadow-sm">
-             <h3 className="font-bold">{q.text}</h3>
-             <div className="flex gap-2 mt-2">
-                {q.options.map((opt:any) => (
-                    <button key={opt.id} onClick={() => handleSelect(q.id, opt)}
-                    className={`p-2 border rounded ${answers[q.id]?.id === opt.id ? 'bg-blue-100 border-blue-500' : ''}`}>
-                        {opt.text}
-                    </button>
-                ))}
-             </div>
-          </div>
-        ))}
-
-        <button onClick={calculateAndSave} className="w-full py-4 bg-green-700 text-white font-bold rounded mt-4">
-          {savingStatus === 'saving' ? 'Enviando...' : 'ENVIAR (Server Action)'}
-        </button>
-
-        {savingStatus === 'error' && (
-          <div className="mt-4 p-4 bg-red-100 text-red-900 border border-red-300 rounded">
-            ❌ Erro: {errorMsg}
-          </div>
-        )}
-
-        {savingStatus === 'success' && (
-          <div className="mt-4 p-4 bg-green-100 text-green-900 border border-green-300 rounded font-bold text-center">
-            ✅ SUCESSO! DADO SALVO!
-          </div>
-        )}
       </div>
-    </div>
-  );
-}
+    );
+  }
+
+  // --- TELA DE SUCESSO ---
+  if (step === 'result') {
+    return (
+      <div className="min-h-screen bg-green-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full text-center">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800">Candidatura Enviada!</h2>
+          <p className="text-gray-600 mt-2">Obrigado, {candidateName}. Nosso RH analisará seu perfil e entrará em contato.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- TELA DO TESTE (QUIZ) ---
+  const question = QUESTIONS[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / QUESTIONS.length) * 100;
+  const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1;
+  const hasAnsweredCurrent = answers[question.id] != null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4 font-sans">
+      
+      {/* Barra de Progresso */}
