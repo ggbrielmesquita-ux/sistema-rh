@@ -1,27 +1,54 @@
-'use server'
+'use server';
 
 import { createClient } from '@supabase/supabase-js';
 
-export async function salvarCandidato(dados: any) {
+// Agora ele pega as chaves do arquivo .env.local automaticamente
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export async function salvarCandidato(dados: any, empresaSlug: string) {
   try {
-    const url = "https://mlnumtqkgkrprpsbhys.supabase.co"; 
-    const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sbnVtdHFrZ2tycHJwcnNiaHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMjcwNjMsImV4cCI6MjA4NTkwMzA2M30.SKg75x-pV-MJWlIarM45vP7J0t8bpsHRd1SL1yE8AeU"; // Só pra garantir, cole a eyJh... aqui
+    console.log(`🔍 Buscando empresa: ${empresaSlug}`);
 
-    // Configuração especial para não dar "fetch failed" na Vercel
-    const supabase = createClient(url, key, {
-      auth: { persistSession: false },
-      global: {
-        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
-      },
-    });
+    // 1. Achar a empresa pelo "Apelido" (slug) que está na URL
+    const { data: empresa, error: erroEmpresa } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('slug', empresaSlug)
+      .single();
 
-    const { error } = await supabase.from('candidates').insert([dados]);
+    if (erroEmpresa || !empresa) {
+      console.error('❌ Empresa não encontrada:', erroEmpresa);
+      return { success: false, message: 'Empresa não cadastrada no sistema.' };
+    }
 
-    if (error) throw error;
+    console.log(`✅ Empresa encontrada ID: ${empresa.id}`);
+
+    // 2. Salvar o candidato vinculado a essa empresa
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert([
+        {
+          name: dados.name,
+          email: dados.email,
+          phone: dados.phone,
+          role_target: dados.role_target,
+          final_scores: dados.final_scores,
+          raw_answers: dados.raw_answers,
+          company_id: empresa.id // <--- VINCULA O CANDIDATO AQUI
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error('❌ Erro Supabase:', error);
+      return { success: false, message: 'Erro ao salvar no banco.' };
+    }
+
     return { success: true };
-
-  } catch (err: any) {
-    console.error('Erro:', err);
-    return { success: false, message: `Erro Hardcode: ${err.message}` };
+  } catch (err) {
+    console.error('❌ Erro Geral:', err);
+    return { success: false, message: 'Erro interno no servidor.' };
   }
 }
