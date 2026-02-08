@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation'; 
 import { salvarCandidato } from '../actions'; 
-import { QUESTIONS_DB } from '../questions'; // <--- CORREÇÃO AQUI (apenas um "../")
+import { QUESTIONS_DB } from '../questions'; 
 
 // --- TIPO DE DADOS ---
 type TraitScores = {
@@ -219,7 +219,7 @@ export default function Home() {
             </h2>
 
             <div className="grid gap-4">
-                {question.options.map((opt) => {
+                {question.options.map((opt, index) => {
                     const isSelected = answers[question.id]?.id === opt.id;
                     return (
                         <button
@@ -237,7 +237,7 @@ export default function Home() {
                                     w-8 h-8 rounded-full border-2 flex items-center justify-center mr-4 flex-shrink-0 transition-colors
                                     ${isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 text-gray-300 group-hover:border-blue-400'}
                                 `}>
-                                    {isSelected ? '✓' : String.fromCharCode(65 + question.options.indexOf(opt))}
+                                    {isSelected ? '✓' : String.fromCharCode(65 + index)}
                                 </div>
                                 <span className={`text-lg ${isSelected ? 'text-blue-900 font-semibold' : 'text-gray-700'}`}>
                                     {opt.text}
