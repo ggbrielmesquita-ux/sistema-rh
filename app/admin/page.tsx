@@ -318,31 +318,64 @@ export default function AdminDashboard() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {candidates.map(candidate => {
-                                    // PREVINE ERRO DE TELEFONE VAZIO
-                                    const safePhone = candidate.phone ? candidate.phone.replace(/\D/g, "") : "";
-                                    const zapLink = safePhone ? `https://wa.me/55${safePhone}` : "#";
-                                    
-                                    return (
-                                    <tr key={candidate.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 font-medium text-gray-900">{candidate.name}</td>
-                                        <td className="px-6 py-4 text-gray-500">{candidate.jobTitle}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold ${candidate.score >= 70 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {candidate.score}%
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {safePhone ? (
-                                                <a href={zapLink} target="_blank" className="text-blue-600 font-bold hover:underline">WhatsApp</a>
-                                            ) : (
-                                                <span className="text-gray-300">Sem Zap</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                )})}
-                                {candidates.length === 0 && <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">Nenhum candidato ainda.</td></tr>}
-                            </tbody>
+    {candidates.map(candidate => {
+        // --- PROTEÇÃO BRUTA (NUCLEAR) ---
+        // Aqui garantimos que NUNCA vai quebrar, mesmo que venha nulo, numero ou indefinido
+        let zapLink = "#";
+        let temZap = false;
+
+        try {
+            if (candidate.phone && typeof candidate.phone === "string") {
+                const apenasNumeros = candidate.phone.replace(/\D/g, "");
+                if (apenasNumeros.length > 8) {
+                    zapLink = `https://wa.me/55${apenasNumeros}`;
+                    temZap = true;
+                }
+            }
+        } catch (erro) {
+            console.log("Erro ao processar telefone:", erro);
+        }
+        // ---------------------------------
+
+        return (
+            <tr key={candidate.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-900">
+                    {candidate.name || "Sem Nome"}
+                </td>
+                <td className="px-6 py-4 text-gray-500">
+                    {candidate.jobTitle || "Geral"}
+                </td>
+                <td className="px-6 py-4 text-center">
+                    <span className="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-600">
+                        {candidate.score || 0}%
+                    </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                    {temZap ? (
+                        <a 
+                            href={zapLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 font-bold hover:underline"
+                        >
+                            WhatsApp
+                        </a>
+                    ) : (
+                        <span className="text-gray-300 text-xs">Sem número</span>
+                    )}
+                </td>
+            </tr>
+        );
+    })}
+    
+    {candidates.length === 0 && (
+        <tr>
+            <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                Nenhum candidato ainda.
+            </td>
+        </tr>
+    )}
+</tbody>
                         </table>
                     </div>
                 </div>
