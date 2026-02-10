@@ -1,40 +1,50 @@
 "use server";
-
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { model } from "../lib/ai";
 
 export async function gerarPerguntasIA(cargo: string, empresa: string) {
-  if (!process.env.GEMINI_API_KEY) throw new Error("Sem chave de API");
-
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
   const prompt = `
-    Atue como um recrutador especialista e psicólogo organizacional.
-    Crie um teste de triagem com EXATAMENTE 25 perguntas de múltipla escolha para a vaga de "${cargo}" na empresa "${empresa}".
+    Você é um Psicólogo Organizacional especialista em Recrutamento e Seleção de alto nível.
+    
+    TAREFA: Crie um teste técnico e comportamental para a vaga de "${cargo}" na empresa "${empresa}".
+    
+    REGRAS OBRIGATÓRIAS:
+    1. Gere exatamente 25 perguntas.
+    2. Linguagem: Simples, popular, acessível (qualquer pessoa deve entender), SEM termos técnicos de RH (como "turnover", "brainstorming").
+    3. Dificuldade: As perguntas devem ser situacionais (casos reais do dia a dia desse cargo).
+    4. As opções de resposta NÃO podem ser óbvias. Não deve haver uma resposta "certa" clara e uma "errada" estúpida. Todas devem parecer plausíveis, mas revelam traços de personalidade diferentes.
+    5. Retorne APENAS um JSON válido (sem markdown, sem texto antes ou depois).
 
-    REGRAS DO TESTE:
-    1. Contexto: As perguntas devem ser SITUACIONAIS e específicas para a rotina de um ${cargo}.
-    2. Dificuldade: Perguntas difíceis, dilemas éticos, pressão e resolução de conflitos. Nada de perguntas óbvias.
-    3. Estilo: Mantenha o tom profissional mas desafiador.
-    4. Formato JSON: Retorne APENAS um array JSON puro, sem markdown, sem texto antes ou depois.
+    ESTRUTURA DO JSON (Array de objetos):
+    [
+      {
+        "id": 1,
+        "text": "Situação difícil do dia a dia...",
+        "options": [
+          { 
+            "id": "a", 
+            "text": "Ação tomada...", 
+            "scores": { "etica": 2, "proatividade": -1, "vendas": 0 } 
+          }
+        ]
+      }
+    ]
 
-    ESTRUTURA DE CADA PERGUNTA (JSON):
-    {
-      "pergunta": "Texto da situação...",
-      "opcoes": [
-        { "texto": "Ação ruim/passiva", "pontuacao": 0 },
-        { "texto": "Ação mediana/correta mas simples", "pontuacao": 5 },
-        { "texto": "Ação excelente/proativa/líder", "pontuacao": 10 }
-      ]
-    }
+    ATENÇÃO AOS SCORES (PESOS):
+    Para cada opção, atribua pontos para traços de personalidade (ex: etica, proatividade, lideranca, resiliencia, organizacao, vendas).
+    Valores positivos (1 a 3) para bom comportamento, negativos (-1 a -3) para mau comportamento.
+    Crie armadilhas para pegar perfis antiéticos.
   `;
 
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-    return JSON.parse(text);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Limpeza para garantir que venha só o JSON
+    const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(jsonString);
   } catch (error) {
-    console.error("Erro IA:", error);
+    console.error("Erro na IA:", error);
     return null;
   }
 }
