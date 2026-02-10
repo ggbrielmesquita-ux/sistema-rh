@@ -4,21 +4,246 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-// Importa as ações Server-Side da IA
-import { analisarPerfilIA } from '../../actions/analisarCandidato'; 
-import { QUESTIONS_DB } from '../../questions'; 
-import { CheckCircle, AlertTriangle, User, Phone, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, User, Phone } from 'lucide-react';
+
+// AS 25 PERGUNTAS ORIGINAIS E DIFÍCEIS
+const QUESTIONS = [
+  {
+    id: 1, text: "1. Você identifica um erro no processo que causa um pequeno prejuízo diário, mas corrigir vai atrasar suas entregas. O que faz?",
+    options: [
+      { text: "Foco nas minhas entregas para não ser cobrado.", points: 0 },
+      { text: "Corrijo imediatamente, mesmo que atrase.", points: 5 },
+      { text: "Aviso o superior e aguardo ordem.", points: 3 },
+      { text: "Monto um plano, calculo o prejuízo e negocio prioridade.", points: 10 }
+    ]
+  },
+  {
+    id: 2, text: "2. O cliente pede uma alteração no projeto que foge do escopo inicial, mas é pequena. Você:",
+    options: [
+      { text: "Faço para agradar o cliente e evitar conflito.", points: 2 },
+      { text: "Nego, pois não está no contrato.", points: 0 },
+      { text: "Explico que foge do escopo, mas posso fazer como cortesia única se não impactar o prazo.", points: 10 },
+      { text: "Cobro um valor adicional imediatamente.", points: 5 }
+    ]
+  },
+  {
+    id: 3, text: "3. Seu chefe esqueceu de te passar uma informação crucial e agora o projeto atrasou. Ele te cobra na frente de todos.",
+    options: [
+      { text: "Exponho que a culpa foi dele por não passar a informação.", points: 0 },
+      { text: "Assumo a culpa para não gerar climão.", points: 3 },
+      { text: "Foco na solução imediata e depois converso com ele em particular sobre o processo.", points: 10 },
+      { text: "Ignoro e continuo trabalhando.", points: 1 }
+    ]
+  },
+  {
+    id: 4, text: "4. A empresa entra em crise e corta o café e o ar condicionado. A equipe está desmotivada.",
+    options: [
+      { text: "Entro na reclamação coletiva.", points: 0 },
+      { text: "Continuo trabalhando quieto.", points: 5 },
+      { text: "Tento animar a equipe focando que é uma fase passageira.", points: 8 },
+      { text: "Proponho ideias de economia ou melhoria de receita para a direção.", points: 10 }
+    ]
+  },
+  {
+    id: 5, text: "5. Você tem uma tarefa repetitiva que toma 2 horas do seu dia.",
+    options: [
+      { text: "Faço ela conforme fui pago para fazer.", points: 5 },
+      { text: "Tento automatizar ou criar um modelo para reduzir o tempo.", points: 10 },
+      { text: "Reclamo que é chato.", points: 0 },
+      { text: "Delegar para um estagiário se possível.", points: 7 }
+    ]
+  },
+  {
+    id: 6, text: "6. Um colega do seu time é muito lento e está prejudicando a meta do grupo.",
+    options: [
+      { text: "Reclamo dele para o gestor.", points: 2 },
+      { text: "Faço a parte dele para garantir a meta.", points: 5 },
+      { text: "Pergunto se ele precisa de ajuda e ensino uma forma mais rápida.", points: 10 },
+      { text: "Deixo ele se afundar sozinho.", points: 0 }
+    ]
+  },
+  {
+    id: 7, text: "7. Numa reunião, dão uma ideia que você sabe que vai dar errado.",
+    options: [
+      { text: "Fico quieto para não ser o chato.", points: 0 },
+      { text: "Falo na hora: 'Isso não vai funcionar'.", points: 3 },
+      { text: "Faço perguntas estratégicas que levem eles a perceberem o erro sozinhos.", points: 10 },
+      { text: "Espero dar errado para dizer 'eu avisei'.", points: 0 }
+    ]
+  },
+  {
+    id: 8, text: "8. Você recebe um feedback negativo injusto na frente da equipe.",
+    options: [
+      { text: "Discuto e me defendo na hora.", points: 2 },
+      { text: "Choro ou fico visivelmente abalado.", points: 0 },
+      { text: "Ouço, anoto e depois peço uma reunião privada para apresentar fatos.", points: 10 },
+      { text: "Aceito quieto.", points: 5 }
+    ]
+  },
+  {
+    id: 9, text: "9. É sexta-feira, 17h50, tem Happy Hour marcado, mas surge uma pendência urgente.",
+    options: [
+      { text: "Vou pro Happy Hour, segunda eu resolvo.", points: 0 },
+      { text: "Fico e resolvo, mesmo bravo.", points: 7 },
+      { text: "Analiso a gravidade: se pode esperar, vou. Se não, resolvo e vou depois.", points: 10 },
+      { text: "Fingo que não vi.", points: 0 }
+    ]
+  },
+  {
+    id: 10, text: "10. Você teve uma ideia brilhante, mas seu colega apresentou como se fosse dele.",
+    options: [
+      { text: "Desminto ele na hora.", points: 2 },
+      { text: "Deixo pra lá, o importante é o resultado da empresa.", points: 5 },
+      { text: "Parabenizo pela apresentação e complemento com detalhes que só quem criou sabe.", points: 10 },
+      { text: "Nunca mais compartilho ideias com ele.", points: 3 }
+    ]
+  },
+  {
+    id: 11, text: "11. A meta do mês parece impossível de bater.",
+    options: [
+      { text: "Nem tento, já sei que não vai dar.", points: 0 },
+      { text: "Faço o meu melhor, se der deu.", points: 5 },
+      { text: "Quebro a meta em dias e foco no progresso diário.", points: 10 },
+      { text: "Reclamo que a meta é abusiva.", points: 0 }
+    ]
+  },
+  {
+    id: 12, text: "12. O concorrente lançou um produto melhor e mais barato.",
+    options: [
+      { text: "Acho que a empresa vai falir.", points: 0 },
+      { text: "Continuo vendendo o meu do mesmo jeito.", points: 3 },
+      { text: "Estudo o concorrente e foco nos diferenciais que eles não têm (atendimento, garantia, etc).", points: 10 },
+      { text: "Sugiro baixar nosso preço também.", points: 5 }
+    ]
+  },
+  {
+    id: 13, text: "13. Você se tornou o único que sabe fazer uma tarefa vital na empresa.",
+    options: [
+      { text: "Guardo o segredo para ser insubstituível.", points: 2 },
+      { text: "Peço aumento ou ameaço sair.", points: 0 },
+      { text: "Documento o processo e treino um backup para eu poder crescer.", points: 10 },
+      { text: "Faço a tarefa reclamando de sobrecarga.", points: 4 }
+    ]
+  },
+  {
+    id: 14, text: "14. Sobrou verba no orçamento do seu projeto no final do ano.",
+    options: [
+      { text: "Gasto com qualquer coisa para não perder a verba ano que vem.", points: 2 },
+      { text: "Devolvo para a empresa.", points: 8 },
+      { text: "Invisto em uma melhoria que trará retorno futuro.", points: 10 },
+      { text: "Uso para fazer uma festa para a equipe.", points: 5 }
+    ]
+  },
+  {
+    id: 15, text: "15. O chefe manda fazer algo que o cliente vai odiar.",
+    options: [
+      { text: "Faço, ele que manda.", points: 3 },
+      { text: "Não faço.", points: 0 },
+      { text: "Argumento com dados mostrando o risco de satisfação.", points: 10 },
+      { text: "Faço e aviso o cliente 'foi meu chefe que mandou'.", points: 0 }
+    ]
+  },
+  {
+    id: 16, text: "16. Para fechar uma venda grande, você precisa omitir um detalhe negativo do produto.",
+    options: [
+      { text: "Omito, preciso da comissão.", points: 0 },
+      { text: "Sou honesto, mesmo que perca a venda.", points: 10 },
+      { text: "Falo técnico demais para ele não entender.", points: 2 },
+      { text: "Foco nos positivos e rezo para ele não perguntar.", points: 5 }
+    ]
+  },
+  {
+    id: 17, text: "17. Você vê um colega levando material de escritório para casa.",
+    options: [
+      { text: "Não é problema meu.", points: 2 },
+      { text: "Denuncio anonimamente.", points: 8 },
+      { text: "Falo com ele que isso pode dar justa causa.", points: 10 },
+      { text: "Começo a levar também.", points: 0 }
+    ]
+  },
+  {
+    id: 18, text: "18. O servidor caiu no fim de semana e você não está de plantão, mas sabe arrumar.",
+    options: [
+      { text: "Finjo que não vi, não ganho hora extra.", points: 0 },
+      { text: "Arrumo e depois aviso para negociar folga.", points: 10 },
+      { text: "Aviso o responsável (que vai demorar horas).", points: 5 },
+      { text: "Espero segunda-feira.", points: 0 }
+    ]
+  },
+  {
+    id: 19, text: "19. A burocracia da empresa trava seu trabalho.",
+    options: [
+      { text: "Burlo as regras para entregar rápido.", points: 4 },
+      { text: "Sigo as regras e entrego atrasado.", points: 5 },
+      { text: "Proponho uma mudança oficial no processo.", points: 10 },
+      { text: "Reclamo no café.", points: 0 }
+    ]
+  },
+  {
+    id: 20, text: "20. Seu chefe pede para você buscar o filho dele na escola (tarefa pessoal).",
+    options: [
+      { text: "Busco e fico bravo.", points: 2 },
+      { text: "Nego, não sou pago para isso.", points: 5 },
+      { text: "Busco dessa vez, mas converso para alinhar limites.", points: 8 },
+      { text: "Aproveito para sair mais cedo do trabalho.", points: 4 }
+    ]
+  },
+  {
+    id: 21, text: "21. Se você ganhasse na loteria hoje.",
+    options: [
+      { text: "Sumiria sem avisar.", points: 0 },
+      { text: "Pediria demissão na hora.", points: 5 },
+      { text: "Cumpriria o aviso prévio ou negociaria uma saída limpa.", points: 10 },
+      { text: "Investiria na empresa.", points: 8 }
+    ]
+  },
+  {
+    id: 22, text: "22. O que mais te irrita no trabalho?",
+    options: [
+      { text: "Fofoca e gente falsa.", points: 5 },
+      { text: "Incompetência e atrasos.", points: 8 },
+      { text: "Ter chefe.", points: 0 },
+      { text: "Falta de processos claros.", points: 10 }
+    ]
+  },
+  {
+    id: 23, text: "23. Que tipo de reconhecimento você prefere?",
+    options: [
+      { text: "Dinheiro no bolso.", points: 6 },
+      { text: "Elogio público.", points: 4 },
+      { text: "Novos desafios e crescimento.", points: 10 },
+      { text: "Folga.", points: 2 }
+    ]
+  },
+  {
+    id: 24, text: "24. Por que saiu (ou quer sair) do emprego anterior?",
+    options: [
+      { text: "Meu chefe era um idiota.", points: 0 },
+      { text: "Ganhar mais.", points: 5 },
+      { text: "Busco novos desafios e aprendizado.", points: 10 },
+      { text: "A empresa estava falindo.", points: 5 }
+    ]
+  },
+  {
+    id: 25, text: "25. Por que devemos te contratar?",
+    options: [
+      { text: "Preciso pagar contas.", points: 0 },
+      { text: "Sou muito esforçado.", points: 5 },
+      { text: "Trago resultados e resolvo problemas.", points: 10 },
+      { text: "Sou melhor que os outros.", points: 2 }
+    ]
+  }
+];
 
 export default function VagaPage() {
   const params = useParams();
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false); // Novo estado para loading do envio
   const [job, setJob] = useState<any>(null);
-  const [questions, setQuestions] = useState<any[]>([]);
   
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [totalScore, setTotalScore] = useState(0);
   const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
@@ -27,94 +252,65 @@ export default function VagaPage() {
       try {
         const q = query(collection(db, "jobs"), where("slug", "==", params.slug));
         const querySnapshot = await getDocs(q);
-
         if (!querySnapshot.empty) {
-          const jobData = querySnapshot.docs[0].data();
-          setJob({ id: querySnapshot.docs[0].id, ...jobData });
-          
-          // Se a vaga tem perguntas da IA, usa elas. Se não, usa as fixas.
-          if (jobData.questions && jobData.questions.length > 0) {
-            setQuestions(jobData.questions);
-          } else {
-            setQuestions(QUESTIONS_DB);
-          }
+          setJob({ id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() });
         }
-      } catch (error) {
-        console.error("Erro ao carregar vaga", error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error(error); } finally { setLoading(false); }
     }
     loadJob();
   }, [params.slug]);
 
-  const handleOptionSelect = (questionId: number, optionId: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: optionId }));
+  const handleOptionSelect = (questionId: number, optionText: string, points: number) => {
+    setAnswers(prev => ({ ...prev, [questionId]: optionText }));
+    // Armazena pontos temporariamente no estado (complexo) ou recalcula no final
+    // Aqui vamos recalcular tudo no final para ser seguro
   };
 
   const handleSubmit = async () => {
     if (!name || !whatsapp) return alert("Preencha seus dados!");
-    if (Object.keys(answers).length < questions.length) return alert("Responda todas as perguntas!");
+    if (Object.keys(answers).length < QUESTIONS.length) return alert("Responda todas as perguntas!");
 
-    setSubmitting(true); // Começa o loading de análise
+    setLoading(true);
+
+    // CALCULAR SCORE (0 a 100%)
+    let points = 0;
+    QUESTIONS.forEach((q, index) => {
+       const answerText = answers[q.id];
+       const selectedOption = q.options.find(opt => opt.text === answerText);
+       if (selectedOption) points += selectedOption.points;
+    });
+
+    const maxPoints = QUESTIONS.length * 10; // 25 * 10 = 250
+    const percentage = Math.round((points / maxPoints) * 100);
 
     try {
-      // 1. CÁLCULO MATEMÁTICO (Simples, para ordenação na tabela)
-      // Aqui somamos pontos se as perguntas tiverem 'scores' (vindo da IA ou do fixo)
-      let totalPoints = 0;
-      let maxPoints = 0;
-
-      questions.forEach(q => {
-          const selectedOpt = q.options.find((o:any) => o.id === answers[q.id]);
-          if (selectedOpt && selectedOpt.scores) {
-              // Soma todos os valores positivos como "acertos" para simplificar a %
-              const values = Object.values(selectedOpt.scores) as number[];
-              const optionScore = values.reduce((a, b) => a + b, 0);
-              if (optionScore > 0) totalPoints += optionScore;
-          }
-          maxPoints += 3; // Média de 3 pontos por questão
-      });
-
-      const percentage = Math.min(100, Math.max(0, Math.round((totalPoints / maxPoints) * 100)));
-
-      // 2. ANÁLISE DE IA (O Pulo do Gato)
-      // Chamamos a função que criamos no passo anterior para gerar o texto
-      const analiseIA = await analisarPerfilIA(job.title, answers, questions);
-
-      // 3. SALVAR NO FIREBASE
       await addDoc(collection(db, "candidates"), {
         name,
         whatsapp,
         jobId: job.id,
         jobTitle: job.title,
-        answers, // O que ele marcou (IDs)
-        score: percentage, // Nota 0-100 para a tabela
-        profileResult: analiseIA, // O Relatório da IA (Veredito, Pontos Fortes/Fracos)
+        answers, // Salva o texto das respostas
+        score: percentage,
         createdAt: new Date().toISOString()
       });
-
       setCompleted(true);
     } catch (error) {
-      console.error(error);
-      alert("Erro ao enviar teste. Tente novamente.");
+      alert("Erro ao enviar.");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">Carregando teste...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">Carregando...</div>;
   if (!job) return <div className="min-h-screen flex items-center justify-center text-red-500">Vaga não encontrada.</div>;
 
   if (completed) {
     return (
-      <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
-        <div className="bg-white p-10 rounded-2xl shadow-xl max-w-md border border-green-100">
-          <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6 drop-shadow-lg" />
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Recebido!</h1>
-          <p className="text-gray-600 mb-6">Suas respostas foram enviadas para a <strong>{job.companyName}</strong>.</p>
-          <div className="bg-green-50 p-4 rounded-lg text-sm text-green-800 font-medium">
-             Obrigado pelo seu tempo, {name.split(' ')[0]}! 
-          </div>
+      <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white p-10 rounded-2xl shadow-lg max-w-md">
+          <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Sucesso!</h1>
+          <p className="text-gray-600">Teste enviado com sucesso.</p>
         </div>
       </div>
     );
@@ -122,71 +318,50 @@ export default function VagaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-        
-        {/* Header Vaga */}
-        <div className="bg-slate-900 p-8 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-20 -mr-10 -mt-10"></div>
-          <h1 className="text-2xl md:text-3xl font-bold relative z-10">{job.title}</h1>
-          <p className="opacity-80 mt-2 text-lg relative z-10">{job.companyName}</p>
-          <div className="mt-4 inline-flex items-center gap-2 text-xs font-bold bg-white/10 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-            <AlertTriangle size={12} className="text-yellow-400" />
-            Teste de Perfil Comportamental
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-blue-900 p-8 text-white">
+          <h1 className="text-2xl font-bold">{job.title}</h1>
+          <div className="mt-2 flex items-center gap-2 text-sm opacity-80">
+            <AlertTriangle size={14} /> Teste Técnico e Comportamental
           </div>
         </div>
 
-        <div className="p-6 md:p-8">
-          {/* Inputs do Candidato */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-gray-50 p-5 rounded-xl border border-gray-100">
+        <div className="p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-lg">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Nome Completo</label>
-              <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2.5 focus-within:ring-2 focus-within:ring-purple-500 transition">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome</label>
+              <div className="flex items-center bg-white border rounded px-3 py-2">
                 <User size={18} className="text-gray-400 mr-2"/>
-                <input 
-                  value={name} onChange={e => setName(e.target.value)}
-                  className="w-full outline-none text-sm bg-transparent" placeholder="Seu nome"
-                />
+                <input value={name} onChange={e => setName(e.target.value)} className="w-full outline-none text-sm" placeholder="Seu nome"/>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">WhatsApp</label>
-              <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2.5 focus-within:ring-2 focus-within:ring-purple-500 transition">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">WhatsApp</label>
+              <div className="flex items-center bg-white border rounded px-3 py-2">
                 <Phone size={18} className="text-gray-400 mr-2"/>
-                <input 
-                  value={whatsapp} onChange={e => setWhatsapp(e.target.value)}
-                  className="w-full outline-none text-sm bg-transparent" placeholder="(11) 99999-9999"
-                />
+                <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full outline-none text-sm" placeholder="Seu número"/>
               </div>
             </div>
           </div>
 
-          {/* Lista de Perguntas */}
-          <div className="space-y-10">
-            {questions.map((q, index) => (
-              <div key={q.id || index} className="animate-in slide-in-from-bottom-4 fade-in duration-700 fill-mode-backwards" style={{ animationDelay: `${index * 50}ms` }}>
-                <p className="font-bold text-gray-800 mb-4 text-lg leading-snug">
-                  <span className="text-purple-600 font-black mr-2 text-xl">{index + 1}.</span>
-                  {q.text}
+          <div className="space-y-8">
+            {QUESTIONS.map((q, index) => (
+              <div key={q.id}>
+                <p className="font-semibold text-gray-800 mb-3 text-lg">
+                  <span className="text-blue-900 font-bold mr-2">{index + 1}.</span> {q.text}
                 </p>
-                <div className="space-y-3 pl-2 md:pl-6 border-l-2 border-gray-100">
-                  {q.options.map((opt: any) => (
+                <div className="space-y-2 pl-4 border-l-2 border-gray-100">
+                  {q.options.map((opt, i) => (
                     <button
-                      key={opt.id}
-                      onClick={() => handleOptionSelect(q.id, opt.id)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all duration-200 group relative overflow-hidden ${
-                        answers[q.id] === opt.id 
-                          ? 'bg-purple-50 border-purple-500 shadow-md ring-1 ring-purple-500 z-10' 
-                          : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                      key={i}
+                      onClick={() => handleOptionSelect(q.id, opt.text, opt.points)}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                        answers[q.id] === opt.text
+                          ? 'bg-blue-50 border-blue-500 shadow-sm ring-1 ring-blue-500 text-blue-900 font-medium' 
+                          : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50 text-gray-600'
                       }`}
                     >
-                      <div className="relative z-10 flex items-start gap-3">
-                          <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${answers[q.id] === opt.id ? 'border-purple-600 bg-purple-600' : 'border-gray-300'}`}>
-                              {answers[q.id] === opt.id && <div className="w-1.5 h-1.5 bg-white rounded-full"/>}
-                          </div>
-                          <span className={`text-sm md:text-base ${answers[q.id] === opt.id ? 'text-purple-900 font-medium' : 'text-gray-600'}`}>
-                            {opt.text}
-                          </span>
-                      </div>
+                      {opt.text}
                     </button>
                   ))}
                 </div>
@@ -194,29 +369,14 @@ export default function VagaPage() {
             ))}
           </div>
 
-          {/* Botão de Envio com Loading */}
-          <div className="mt-12 pt-8 border-t border-gray-100">
+          <div className="mt-10 pt-6 border-t">
             <button 
               onClick={handleSubmit}
-              disabled={submitting}
-              className={`w-full py-4 rounded-xl text-lg font-bold text-white shadow-xl shadow-purple-600/20 transition-all transform hover:scale-[1.01] flex items-center justify-center gap-3
-                ${submitting ? 'bg-purple-400 cursor-wait' : 'bg-purple-600 hover:bg-purple-700'}
-              `}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition-all"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Analisando Perfil...
-                </>
-              ) : (
-                "Finalizar Teste"
-              )}
+              Finalizar Teste
             </button>
-            <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Loader2 size={10} className="animate-spin text-purple-400"/> IA analisando respostas em tempo real
-            </p>
           </div>
-
         </div>
       </div>
     </div>
